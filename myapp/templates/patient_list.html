@@ -1,0 +1,166 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <h1 class="text-3xl font-bold mb-4">患者リスト</h1>
+    <button type="button" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 mb-4 rounded"
+            id="openModalBtn">
+        新規患者登録
+    </button>
+    <a href="{% url 'export_csv' %}" class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 mb-4 rounded">CSV出力</a>
+    <table class="min-w-full bg-white shadow-md rounded-lg overflow-hidden">
+        <thead class="bg-gray-200 text-gray-700">
+            <tr>
+                <th class="py-3 px-6 text-left">名前</th>
+                <th class="py-3 px-6 text-left">生年月日</th>
+                <th class="py-3 px-6 text-left">性別</th>
+                <th class="py-3 px-6 text-left">住所</th>
+                <th class="py-3 px-6 text-left">連絡先</th>
+                <th class="py-3 px-6 text-left">詳細</th>
+            </tr>
+        </thead>
+        <tbody id="patientList" class="divide-y divide-gray-200">
+            {% for patient in patients %}
+            <tr>
+                <td class="py-4 px-6">{{ patient.name }}</td>
+                <td class="py-4 px-6">{{ patient.birth_date|date:"Y年m月d日"|default:"-" }}</td>
+                <td class="py-4 px-6">{{ patient.gender|default:"-" }}</td>
+                <td class="py-4 px-6">
+                    {% if patient.address %}
+                        {{ patient.address.text|default:"-" }}
+                    {% else %}
+                        -
+                    {% endif %}
+                </td>
+                <td class="py-4 px-6">
+                    {% if patient.telecom %}
+                        {{ patient.telecom.0.value|default:"-" }}
+                    {% else %}
+                        -
+                    {% endif %}
+                </td>
+                <td class="py-4 px-6">
+                    <button type="button" class="bg-green-500 hover:bg-green-700 text-white font-bold py-1 px-2 rounded"
+                            onclick="showPatientDetails('{{ patient.id }}')">
+                        詳細
+                    </button>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Create Patient Modal -->
+<div class="fixed z-10 inset-0 overflow-y-auto hidden" id="createPatientModal">
+    <div class="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+        <div class="fixed inset-0 transition-opacity" aria-hidden="true">
+            <div class="absolute inset-0 bg-gray-500 opacity-75"></div>
+        </div>
+        <div class="inline-block align-middle bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+            <form method="post" id="createPatientForm">
+                {% csrf_token %}
+                {% include 'create_patient.html' with form=form %}
+                <div class="flex justify-end mt-4 px-6 py-3 bg-gray-50 text-right">
+                    <button type="button" id="closeModalBtn" class="mr-2 inline-block bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded">
+                        キャンセル
+                    </button>
+                    <button type="submit" class="inline-block bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+                        登録
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    var createModal = document.getElementById('createPatientModal');
+    var openModalBtn = document.getElementById('openModalBtn');
+    var closeModalBtn = document.getElementById('closeModalBtn');
+    var createPatientForm = document.getElementById('createPatientForm');
+
+    openModalBtn.addEventListener('click', function () {
+        createModal.classList.remove('hidden');
+    });
+
+    closeModalBtn.addEventListener('click', function () {
+        createModal.classList.add('hidden');
+    });
+
+    createModal.addEventListener('click', function (e) {
+        if (e.target === createModal) {
+            createModal.classList.add('hidden');
+        }
+    });
+
+    createPatientForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        var formData = new FormData(this);
+
+        fetch("{% url 'create_patient' %}", {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // 成功時の処理
+                createModal.classList.add('hidden');
+                // 新しい患者をテーブルに追加
+                addPatientToTable(data.patient);
+                // フォームをリセット
+                createPatientForm.reset();
+            } else {
+                // エラー時の処理
+                console.error('Error creating patient:', data.errors);
+                // エラーメッセージを表示
+                displayErrors(data.errors);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+        });
+    });
+});
+
+function addPatientToTable(patient) {
+    var tbody = document.getElementById('patientList');
+    var newRow = document.createElement('tr');
+    newRow.innerHTML = `
+        <td class="py-4 px-6">${patient.name}</td>
+        <td class="py-4 px-6">${patient.birth_date}</td>
+        <td class="py-4 px-6">${patient.gender}</td>
+        <td class="py-4 px-6">${patient.address}</td>
+        <td class="py-4 px-6">${patient.telecom}</td>
+        <td class="py-4 px-6">
+            <button type="button" class="bg-green-500 hover:bg-green-700 text-white font-bold py-1 px-2 rounded"
+                    onclick="showPatientDetails('${patient.id}')">
+                詳細
+            </button>
+        </td>
+    `;
+    tbody.appendChild(newRow);
+}
+
+function displayErrors(errors) {
+    // エラーメッセージを表示する処理を実装
+    // 例: フォームの各フィールドの下にエラーメッセージを表示
+    for (let field in errors) {
+        let errorElement = document.getElementById(`${field}-error`);
+        if (errorElement) {
+            errorElement.textContent = errors[field].join(', ');
+            errorElement.classList.remove('hidden');
+        }
+    }
+}
+
+function showPatientDetails(patientId) {
+    console.log('Showing details for patient:', patientId);
+}
+</script>
+{% endblock %}

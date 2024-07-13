@@ -1,0 +1,100 @@
+{% csrf_token %}
+<div class="max-w-4xl mx-auto bg-white overflow-hidden">
+    <div class="px-6 py-4 bg-gray-100 border-b border-gray-200">
+        <h2 class="text-xl font-semibold text-gray-800">新規患者入力フォーム</h2>
+    </div>
+    <div class="p-6">
+        <div id="basicFields" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {% for field in form %}
+                {% if field.name in 'family_name,given_name,birth_date,gender,address_text,telecom_value' %}
+                    <div class="{% if field.name in 'address_text,telecom_value' %}col-span-full{% endif %}">
+                        <label for="{{ field.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">
+                            {{ field.label }}
+                        </label>
+                        {% if field.field.widget.input_type == "select" %}
+                            {{ field }}
+                        {% else %}
+                            <input type="{{ field.field.widget.input_type }}" name="{{ field.name }}" id="{{ field.id_for_label }}" value="{{ field.value|default:'' }}" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
+                        {% endif %}
+                        {% if field.errors %}
+                            {% for error in field.errors %}
+                                <p class="mt-1 text-sm text-red-600">{{ error }}</p>
+                            {% endfor %}
+                        {% endif %}
+                    </div>
+                {% endif %}
+            {% endfor %}
+        </div>
+    <div id="additionalFields" class="hidden mt-8 border-t pt-6">
+        <h3 class="text-lg font-medium text-gray-900 mb-4">追加情報</h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {% for field in form %}
+                {% if field.name not in 'family_name,given_name,birth_date,gender,address_text,telecom_value' %}
+                    <div>
+                        <label for="{{ field.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">
+                            {{ field.label }}
+                        </label>
+                        {% if field.field.widget.input_type == "select" %}
+                            {{ field }}
+                        {% elif field.field.widget.input_type == "checkbox" %}
+                            <input type="checkbox" name="{{ field.name }}" id="{{ field.id_for_label }}" {% if field.value %}checked{% endif %} class="mt-1 rounded border-gray-300 text-indigo-600 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
+                        {% elif field.field.widget.input_type == "textarea" %}
+                            <textarea name="{{ field.name }}" id="{{ field.id_for_label }}" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50" rows="3">{{ field.value|default_if_none:'' }}</textarea>
+                        {% else %}
+                            <input type="{{ field.field.widget.input_type }}" name="{{ field.name }}" id="{{ field.id_for_label }}" value="{{ field.value|default_if_none:'' }}" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
+                        {% endif %}
+                        {% if field.errors %}
+                            {% for error in field.errors %}
+                                <p class="mt-1 text-sm text-red-600">{{ error }}</p>
+                            {% endfor %}
+                        {% endif %}
+                    </div>
+                {% endif %}
+            {% endfor %}
+        </div>
+    </div>
+
+        <div class="mt-8 flex justify-between items-center">
+            <button type="button" id="toggleAdditionalFields" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-indigo-700 bg-indigo-100 hover:bg-indigo-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                <svg class="mr-2 h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                    <path fill-rule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clip-rule="evenodd" />
+                </svg>
+                追加フィールドを表示
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var toggleButton = document.getElementById('toggleAdditionalFields');
+    var additionalFields = document.getElementById('additionalFields');
+    var icon = toggleButton.querySelector('svg');
+
+    toggleButton.addEventListener('click', function() {
+        additionalFields.classList.toggle('hidden');
+        if (additionalFields.classList.contains('hidden')) {
+            this.innerHTML = `
+                <svg class="mr-2 h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                    <path fill-rule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clip-rule="evenodd" />
+                </svg>
+                追加フィールドを表示
+            `;
+        } else {
+            this.innerHTML = `
+                <svg class="mr-2 h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                    <path fill-rule="evenodd" d="M5 10a1 1 0 011-1h8a1 1 0 110 2H6a1 1 0 01-1-1z" clip-rule="evenodd" />
+                </svg>
+                追加フィールドを隠す
+            `;
+        }
+    });
+});
+
+function showPatientDetails(patientId) {
+    var modal = document.getElementById('patientDetailsModal');
+    modal.classList.remove('hidden');
+    document.getElementById('patientId').value = patientId;
+    // ここで患者の詳細情報を取得してフォームに入力するロジックを追加します
+}
+</script>
